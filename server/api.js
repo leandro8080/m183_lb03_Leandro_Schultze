@@ -2,8 +2,11 @@ const { initializeDatabase, queryDB, insertDB } = require("./database");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const bcrypt = require("bcrypt");
+const AesEncryption = require("aes-encryption");
 
 let db;
+const aes = new AesEncryption();
+aes.setSecretKey(process.env.AESSECRETKEY);
 const secretKey = process.env.SECRETKEY;
 
 const initializeAPI = async (app) => {
@@ -12,7 +15,6 @@ const initializeAPI = async (app) => {
     app.post("/api/feed", postTweet);
     app.post("/api/login", login);
     app.get("/api/verify-token", verifyToken);
-    app.post("/api/hash-password", hashPassword);
 };
 
 const getFeed = async (req, res) => {
@@ -30,6 +32,11 @@ const getFeed = async (req, res) => {
         }
         const query = "SELECT * FROM tweets ORDER BY id DESC";
         const tweets = await queryDB(db, query);
+        for (i = 0; i < tweets.length; i++) {
+            tweets[i].username = aes.decrypt(tweets[i].username);
+            tweets[i].timestamp = aes.decrypt(tweets[i].timestamp);
+            tweets[i].text = aes.decrypt(tweets[i].text);
+        }
         res.json(tweets);
     });
 };
@@ -50,7 +57,11 @@ const postTweet = (req, res) => {
 
         const { username } = decoded.data;
         const { timestamp, text } = req.body;
-        const query = `INSERT INTO tweets (username, timestamp, text) VALUES ('${username}', '${timestamp}', '${text}')`;
+
+        const encryptedUsername = aes.encrypt(username);
+        const encryptedTimestamp = aes.encrypt(timestamp);
+        const encryptedText = aes.encrypt(text);
+        const query = `INSERT INTO tweets (username, timestamp, text) VALUES ('${encryptedUsername}', '${encryptedTimestamp}', '${encryptedText}')`;
         insertDB(db, query);
         res.json({ status: "ok" });
     });
@@ -95,19 +106,6 @@ const verifyToken = async (req, res) => {
         }
 
         return res.status(200);
-    });
-};
-
-// This function is only for "testing" so I can generate a hashed password for testing the login
-const hashPassword = async (req, res) => {
-    const password = req.body.password;
-    const saltRounds = 10;
-    bcrypt.hash(password, saltRounds, (err, hash) => {
-        if (err) {
-            return res.sendStatus(500);
-        }
-
-        res.status(200).send(hash);
     });
 };
 
