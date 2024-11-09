@@ -1,12 +1,19 @@
 const express = require("express");
 const http = require("http");
 const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
 const { initializeAPI } = require("./api");
+
+const limiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 50,
+    message: "Too many requests, please try again later.<br>",
+});
 
 // Create the express server
 const app = express();
 app.use(express.json());
-
+app.use(limiter);
 app.use(
     helmet({
         contentSecurityPolicy: {
