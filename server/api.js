@@ -1,6 +1,7 @@
 const { initializeDatabase, queryDB, insertDB } = require("./database");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
+const bcrypt = require("bcrypt");
 
 let db;
 const secretKey = process.env.SECRETKEY;
@@ -11,6 +12,7 @@ const initializeAPI = async (app) => {
     app.post("/api/feed", postTweet);
     app.post("/api/login", login);
     app.get("/api/verify-token", verifyToken);
+    app.post("/api/hash-password", hashPassword);
 };
 
 const getFeed = async (req, res) => {
@@ -59,7 +61,9 @@ const login = async (req, res) => {
     const query = `SELECT password FROM users WHERE username = "${username}";`;
     const user = await queryDB(db, query);
     if (user.length === 1) {
-        if (user[0].password === password) {
+        const hashedPassword = user[0].password;
+        const match = await bcrypt.compare(password, hashedPassword);
+        if (match) {
             const token = jwt.sign(
                 {
                     exp: Math.floor(Date.now() / 1000) + 60 * 60,
@@ -68,6 +72,8 @@ const login = async (req, res) => {
                 secretKey
             );
             res.status(200).send(token);
+        } else {
+            res.status(401).send("Username or password wrong");
         }
     } else {
         res.status(401).send("Username or password wrong");
@@ -91,4 +97,18 @@ const verifyToken = async (req, res) => {
         return res.status(200);
     });
 };
+
+// This function is only for "testing" so I can generate a hashed password for testing the login
+const hashPassword = async (req, res) => {
+    const password = req.body.password;
+    const saltRounds = 10;
+    bcrypt.hash(password, saltRounds, (err, hash) => {
+        if (err) {
+            return res.sendStatus(500);
+        }
+
+        res.status(200).send(hash);
+    });
+};
+
 module.exports = { initializeAPI };
