@@ -7,7 +7,15 @@ const { initializeAPI } = require("./api");
 const app = express();
 app.use(express.json());
 
-app.use(helmet());
+app.use(
+    helmet({
+        contentSecurityPolicy: {
+            directives: {
+                "script-src": ["'self'", "https://cdn.tailwindcss.com/"],
+            },
+        },
+    })
+);
 const server = http.createServer(app);
 
 // deliver static files from the client folder like css, js, images
