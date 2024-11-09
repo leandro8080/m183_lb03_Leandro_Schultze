@@ -1,5 +1,6 @@
 const { initializeDatabase, queryDB, insertDB } = require("./database");
 const jwt = require("jsonwebtoken");
+const { body, validationResult } = require("express-validator");
 require("dotenv").config();
 const bcrypt = require("bcrypt");
 const AesEncryption = require("aes-encryption");
@@ -12,8 +13,8 @@ const secretKey = process.env.SECRETKEY;
 const initializeAPI = async (app) => {
     db = await initializeDatabase();
     app.get("/api/feed", getFeed);
-    app.post("/api/feed", postTweet);
-    app.post("/api/login", login);
+    app.post("/api/feed", body("username").escape(), body("timestamp").escape(), body("text").notEmpty().withMessage("Text is empty").escape(), postTweet);
+    app.post("/api/login", body("username").escape(), login);
     app.get("/api/verify-token", verifyToken);
 };
 
@@ -42,6 +43,10 @@ const getFeed = async (req, res) => {
 };
 
 const postTweet = (req, res) => {
+    const result = validationResult(req);
+    if (result.errors.length > 0) {
+        return res.sendStatus(400);
+    }
     const authHeader = req.headers["authorization"];
     if (!authHeader) {
         return res.sendStatus(401);
