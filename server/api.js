@@ -21,14 +21,17 @@ const initializeAPI = async (app) => {
 const getFeed = async (req, res) => {
     const authHeader = req.headers["authorization"];
     if (!authHeader) {
+        req.log.warn("Unauthorized access attempt to feeds");
         return res.sendStatus(401);
     }
     const token = authHeader.split(" ")[1];
     if (!token) {
+        req.log.warn("Unauthorized access attempt to feeds");
         return res.sendStatus(401);
     }
     jwt.verify(token, secretKey, async (err) => {
         if (err) {
+            req.log.warn("Token verification failed when accessing feeds");
             return res.sendStatus(401);
         }
         const query = "SELECT * FROM tweets ORDER BY id DESC";
@@ -38,25 +41,30 @@ const getFeed = async (req, res) => {
             tweets[i].timestamp = aes.decrypt(tweets[i].timestamp);
             tweets[i].text = aes.decrypt(tweets[i].text);
         }
-        res.json(tweets);
+        req.log.info("Tweets retrieved successfully");
+        res.status(200).json(tweets);
     });
 };
 
 const postTweet = (req, res) => {
     const result = validationResult(req);
     if (result.errors.length > 0) {
+        req.log.info("Post validation failed when posting tweet");
         return res.sendStatus(400);
     }
     const authHeader = req.headers["authorization"];
     if (!authHeader) {
+        req.log.warn("Unauthorized attempt to post tweet");
         return res.sendStatus(401);
     }
     const token = authHeader.split(" ")[1];
     if (!token) {
+        req.log.warn("Unauthorized attempt to post tweet");
         return res.sendStatus(401);
     }
     jwt.verify(token, secretKey, async (err, decoded) => {
         if (err) {
+            req.log.warn("Token verification failed when accessing feeds");
             return res.sendStatus(401);
         }
 
@@ -68,6 +76,7 @@ const postTweet = (req, res) => {
         const encryptedText = aes.encrypt(text);
         const query = `INSERT INTO tweets (username, timestamp, text) VALUES ('${encryptedUsername}', '${encryptedTimestamp}', '${encryptedText}')`;
         insertDB(db, query);
+        req.log.info(`Post created successfully with title: "${title}"`);
         res.json({ status: "ok" });
     });
 };
@@ -87,11 +96,14 @@ const login = async (req, res) => {
                 },
                 secretKey
             );
+            req.log.info(`User logged in successfully`);
             res.status(200).send(token);
         } else {
+            req.log.warn(`Login failed: incorrect password`);
             res.status(401).send("Username or password wrong");
         }
     } else {
+        req.log.warn(`Login failed: didn't find username: ${username}`);
         res.status(401).send("Username or password wrong");
     }
 };
@@ -99,17 +111,21 @@ const login = async (req, res) => {
 const verifyToken = async (req, res) => {
     const authHeader = req.headers["authorization"];
     if (!authHeader) {
+        req.log.warn("Unauthorized attempt to verify token");
         return res.sendStatus(401);
     }
     const token = authHeader.split(" ")[1];
     if (!token) {
+        req.log.warn("Unauthorized attempt to verify token");
         return res.sendStatus(401);
     }
     jwt.verify(token, secretKey, async (err) => {
         if (err) {
+            req.log.warn("Token verification failed");
             return res.sendStatus(401);
         }
 
+        req.log.info(`Successfully verified token.`);
         return res.status(200);
     });
 };

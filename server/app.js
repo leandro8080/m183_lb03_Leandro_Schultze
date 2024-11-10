@@ -3,6 +3,16 @@ const http = require("http");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const { initializeAPI } = require("./api");
+const pino = require("pino-http")({
+    transport: {
+        target: "pino-pretty",
+        options: {
+            colorize: true, // Aktiviert Farben
+            translateTime: "SYS:standard", // Zeigt Zeitstempel in lesbarem Format
+            ignore: "pid,hostname", // Entfernt `pid` und `hostname` Felder
+        },
+    },
+});
 
 const limiter = rateLimit({
     windowMs: 60 * 1000,
@@ -14,6 +24,7 @@ const limiter = rateLimit({
 const app = express();
 app.use(express.json());
 app.use(limiter);
+app.use(pino);
 app.use(
     helmet({
         contentSecurityPolicy: {
